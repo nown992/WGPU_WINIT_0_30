@@ -375,7 +375,7 @@ impl ApplicationHandler for App<'_> {
             );
             self.window = Some(window.clone());
             let rt = Runtime::new().expect("Failed to get runtime");
-            let state = GameState::new(window.clone());
+            let state = GameState::new(window);
             let state = rt.block_on(state);
             self.state = Some(state);
         }
