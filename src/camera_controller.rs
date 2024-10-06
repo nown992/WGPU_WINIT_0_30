@@ -17,7 +17,7 @@ pub struct CameraController {
 impl CameraController {
     pub fn new() -> Self {
         Self {
-            speed: 0.2,
+            speed: 0.02,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,
