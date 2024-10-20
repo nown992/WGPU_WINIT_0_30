@@ -3,13 +3,16 @@ name = "WGPU_WINIT_0_30"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies.image]
 version = "0.24"
 default-features = false
 features = ["png","jpeg"]
 
 [dependencies]
-winit = "0.30.3"
+winit = {version = "0.30.5", features = ["rwh_06","wayland"]}
 wgpu = "0.20.1"
 tokio = { version = "1.38", features = ["full"] }
 bytemuck = {version = "1.16.1", features = ["derive"]}

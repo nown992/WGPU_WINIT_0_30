@@ -1,0 +1,1 @@
+Oct 20 15:43:03.360 VM: trying to shutdown an inactive VM.
