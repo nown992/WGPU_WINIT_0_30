@@ -1,5 +1,5 @@
 [package]
-name = "WGPU_WINIT_0_30"
+name = "wgpu_winit_0_30"
 version = "0.1.0"
 edition = "2021"
 
