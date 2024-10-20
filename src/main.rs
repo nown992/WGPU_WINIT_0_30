@@ -1,5 +1,5 @@
 use winit::event_loop::{ControlFlow, EventLoop};
-use WGPU_WINIT_0_30::App;
+use wgpu_winit_0_30::App;
 
 fn main() {
     let event_loop = EventLoop::new().expect("failed to get event loop");

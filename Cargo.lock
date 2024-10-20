@@ -3,19 +3,6 @@
 version = 3
 
 [[package]]
-name = "WGPU_WINIT_0_30"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "cgmath",
- "image",
- "tokio",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2126,6 +2113,19 @@ dependencies = [
  "bitflags 2.6.0",
  "js-sys",
  "web-sys",
+]
+
+[[package]]
+name = "wgpu_winit_0_30"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "cgmath",
+ "image",
+ "tokio",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]
