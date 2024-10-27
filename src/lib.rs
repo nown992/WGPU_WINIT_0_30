@@ -26,12 +26,7 @@ mod resources;
 
 
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
-const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-    0.0,
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-);
+
 
 struct Instances {
     position: cgmath::Vector3<f32>,
@@ -57,8 +52,6 @@ struct GameState<'a> {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     depth_texture: texture::Texture,
-    diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture,
     camera: camera::Camera,
     camera_uniform: camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
@@ -80,42 +73,50 @@ impl Instances {
 }
 impl<'a> GameState<'a> {
     async fn new(window: Arc<Window>) -> GameState<'a> {
-        let camera_controller = camera_controller::CameraController::new();
-
+        //define window size
         let size = window.inner_size();
+        //create a WGPU instance
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
-
+        //use our instance to create a surface for wgpu to display to
         let surface = instance
             .create_surface(Arc::clone(&window))
             .expect("Failed to initialised surface");
+        //create an adapter to the physical graphics device
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 ..Default::default()
             })
             .await
             .expect("Failed to get adapter");
-
+//return the graphics device and command queue for the device. 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default(), None)
             .await
             .expect("Failed to load device");
-
+//returns the config for the adaptor in interact with the surface
         let config = surface
             .get_default_config(&adapter, size.width, size.height)
             .unwrap();
-
+//initializes the surface for configuration
         surface.configure(&device, &config);
-        let instances = (0..NUM_INSTANCES_PER_ROW)
+
+
+// This is to instancing of our object to display multiple copys of the same object, This will map
+// 10 in x,y,z direction and rotate the object up to 45 degree as it gets further away
+        let num_instances_per_row = 10;
+        let instances = (0..num_instances_per_row)
             .flat_map(|z| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                (0..num_instances_per_row).flat_map(move |x| {
+                    (0..num_instances_per_row).map(move|y|{
                     let space_between = 3.0;
                     let position = cgmath::Vector3 {
-                        x: space_between * (x as f32 - NUM_INSTANCES_PER_ROW as f32 /2.0),
-                        y: 0.0,
-                        z: space_between * (z as f32 - NUM_INSTANCES_PER_ROW as f32 /2.0),                    };
+                        x: space_between * (x as f32 - num_instances_per_row as f32 /2.0),
+                        y: space_between * (y as f32 - num_instances_per_row as f32 /2.0),
+                        z: space_between * (z as f32 - num_instances_per_row as f32 /2.0),
+                    };
 
                     let rotation = if position.is_zero() {
                         cgmath::Quaternion::from_axis_angle(
@@ -128,20 +129,18 @@ impl<'a> GameState<'a> {
 
                     Instances { position, rotation }
                 })
+                }).collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-
+//takes our instance position and rotation to turn into a matrix4X4 so it can be read by the shader 
         let instance_data: Vec<InstanceRaw> = instances.iter().map(Instances::to_raw).collect();
+        //puts the instance into the buffer
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX,
         });
-
-        let diffuse_bytes = include_bytes!("../happy-tree.png");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
+//define the layout of our bind group for our textures
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -164,32 +163,21 @@ impl<'a> GameState<'a> {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
+//create our depth texture which will amend texel displayed based on depth rather than CW or CCW
+let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+//loading in our model and the associated texture
         let obj_model = resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout).await.unwrap();
+//create our camera
+        let camera_controller = camera_controller::CameraController::new();
         let mut camera = camera::Camera::new(size.width as f32, size.height as f32);
         let mut camera_uniform = camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera);
+        //adds our camera into a buffer
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera buffer"),
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-
+//define the layout of the camera bind group
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -204,6 +192,7 @@ impl<'a> GameState<'a> {
                 }],
                 label: Some("camera_bind_group_layout"),
             });
+        //create the camera bind group using our layout and load the buffer into it
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
             label: Some("camera_bind_group"),
@@ -212,18 +201,21 @@ impl<'a> GameState<'a> {
                 resource: camera_buffer.as_entire_binding(),
             }],
         });
+    //define where the shader is and load it into the program
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
-       let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
+//define the render pipeline layout. which will need our bind group layouts that are needed to be
+//rendered
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
+//create our render pipeline, and shaders attached to it. 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
@@ -280,8 +272,6 @@ impl<'a> GameState<'a> {
             size,
             render_pipeline,
             depth_texture,
-            diffuse_bind_group,
-            diffuse_texture,
             camera,
             camera_uniform,
             camera_buffer,
