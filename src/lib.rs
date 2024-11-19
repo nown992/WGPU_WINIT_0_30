@@ -123,7 +123,7 @@ impl<'a> GameState<'a> {
                             let space_between = 3.0;
                             let position = cgmath::Vector3 {
                                 x: space_between * (x as f32 - num_instances_per_row as f32 / 2.0),
-                                y: space_between * (y as f32 - num_instances_per_row as f32 / 2.0),
+                                y: 0.5,
                                 z: space_between * (z as f32 - num_instances_per_row as f32 / 2.0),
                             };
 
@@ -198,7 +198,7 @@ impl<'a> GameState<'a> {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
